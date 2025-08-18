@@ -6,18 +6,16 @@ import org.springframework.web.socket.config.annotation.EnableWebSocket;
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
 import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
 
-@EnableWebSocket
 @Configuration
-public class LaravelSockConfig implements WebSocketConfigurer {
-
+@EnableWebSocket
+public class LaravelConfigurer implements WebSocketConfigurer {
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-        registry.addHandler(myHandler(),"/api/lara-sock" ).addInterceptors(new LaravelSockInterceptor());
-
+        registry.addHandler(myHandler(), "/api/laravel-sock").setAllowedOrigins("*");
     }
 
     @Bean
-    LaravelSockHandler myHandler(){
+    public LaravelSockHandler myHandler(){
         return  new LaravelSockHandler();
     }
 }

@@ -1,19 +1,18 @@
 package com.x64dev.watcher.socks.laravel;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.x64dev.watcher.models.LaravelLog;
-import com.x64dev.watcher.models.LogEventAdapter;
-import com.x64dev.watcher.models.LogEventListener;
-import com.x64dev.watcher.service.LaravelLogWatcher;
+import com.x64dev.watcher.models.laravel.LaravelLogListener;
+import com.x64dev.watcher.models.laravel.LaravelLogWatcher;
+import com.x64dev.watcher.models.laravel.LaravelSessionLogListener;
 import com.x64dev.watcher.service.LaravelService;
 import jakarta.annotation.PostConstruct;
 import lombok.Data;
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
+import org.springframework.web.socket.WebSocketMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
@@ -23,118 +22,82 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.CopyOnWriteArraySet;
 
 @Slf4j
+@Component
 public class LaravelSockHandler extends TextWebSocketHandler {
+
+    @Autowired
+    ObjectMapper mapper;
     @Autowired
     LaravelService laravelService;
+    ConcurrentHashMap<String, LaravelLogWatcher> watchers  = new ConcurrentHashMap<>();
+    ConcurrentHashMap<String, List<WebSocketSession>> listenParties = new ConcurrentHashMap<>();
 
-    @Getter
-    @Autowired
-    private static LaravelSockHandler instance;
-
-    @Autowired
-    private  ObjectMapper mapper;
-
-
-    @PostConstruct
-    private void init() {
-        String site = System.getenv("DEFAULT_SITE");
-        if(!fileWatchers.containsKey(site)){
-            LaravelLogWatcher watcher = new LaravelLogWatcher(site);
-            try{
-                watcher.startWatching();
-            }catch (IOException e){
-                log.error("Failed to start watcher : {}", e.getMessage(), e);
-            }
-            fileWatchers.put(System.getenv("DEFAULT_SITE"), watcher);
-        }
-        instance = this;
-    }
-
-    private final Map<String, LaravelLogWatcher> fileWatchers = new ConcurrentHashMap<>();
-    private final Map<String, String> sessionSite = new ConcurrentHashMap<>();
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
-        String site = System.getenv("DEFAULT_SITE");
-        sessionSite.put(session.getId(), site);
-        LaravelLogWatcher watcher = fileWatchers.get(site);
-        watcher.addListener(newListener(session));
-        var stats = laravelService.loadStats(site);
-        try {
-            session.sendMessage(new TextMessage(mapper.writeValueAsString(stats)));
-        }catch (IOException e){
-            log.error("Failed to send data to lara-sock on connection: {}", e.getMessage(), e);
-        }
+        super.afterConnectionEstablished(session);
     }
 
     @Override
-    protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
-        MessageBody body = mapper.readValue(message.getPayload(), MessageBody.class);
-        if(!fileWatchers.containsKey(body.getSite())){
-            try{
-                LaravelLogWatcher watcher = new LaravelLogWatcher(body.getSite());
-                watcher.startWatching();
-                fileWatchers.put(body.getSite(), watcher);
-            }catch (IOException e){
-                log.error("Failed to start watcher : {}", e.getMessage(), e);
-            }
-        }
+    public void handleMessage(WebSocketSession session, WebSocketMessage<?> message) throws Exception {
+        String msg = (String) message.getPayload();
+        LaravelMessage msgJson = mapper.readValue(msg, LaravelMessage.class);
+        Map<String, String> data = laravelService.fistLogsLoad(msgJson.data.get("site"));
 
-        LaravelLogWatcher watcher = fileWatchers.get(body.getSite());
-        watcher.addListener(newListener(session));
-
-        log.info("New site received: {}", body.getSite());
-        var stats = laravelService.loadStats(body.getSite());
-
-        try {
-            session.sendMessage(new TextMessage(mapper.writeValueAsString(stats)));
+        try{
+            Map<String, String> statsMsg = new HashMap<>();
+            statsMsg.put("type", "laravel_stats");
+            statsMsg.put("stats", data.get("stats"));
+            session.sendMessage(new TextMessage(mapper.writeValueAsString(statsMsg)));
         }catch (IOException e){
-            log.error("Failed to send data to lara-sock on connection: {}", e.getMessage(), e);
+            log.error("Failed to send stats message: ", e);
         }
+
+        try{
+            Map<String, String>  logsMsg = new HashMap<>();
+            logsMsg.put("type", "all_logs");
+            logsMsg.put("logs", data.get("logs"));
+            session.sendMessage(new TextMessage(mapper.writeValueAsString(logsMsg)));
+        }catch (IOException e){
+            log.error("Failed to send logs: ", e);
+        }
+        manageWatcher(msgJson.data.get("site"), session);
+    }
+
+
+
+    private void manageWatcher(String siteFile, WebSocketSession session){
+        LaravelLogWatcher watcher = watchers.get(siteFile);
+        LaravelSessionLogListener listener = new LaravelSessionLogListener(session);
+
+        if(watcher == null){
+            try{
+                watcher = new LaravelLogWatcher(siteFile);
+                watcher.addListener(listener);
+                watcher.startWatching();
+            }catch (IOException e){
+                log.error("Failed to create new watcher for {}: ", siteFile, e);
+            }
+            return;
+        }
+        LaravelLogWatcher finalWatcher = watcher;
+        watchers.forEachValue(5L, (v)->{
+            if (v != finalWatcher){
+                v.removeListener(session);
+            }
+        });
+        watcher.addListener(listener);
     }
 
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) throws Exception {
-        LaravelLogWatcher watcher = fileWatchers.get(sessionSite.get(session.getId()));
-        watcher.removeListenerBySession(session.getId());
+        super.afterConnectionClosed(session, status);
     }
 
-    private LogEventListener newListener(WebSocketSession session){
-        return new LogEventAdapter(session) {
-            @Override
-            public void onNewLogEntry(LaravelLog logEntry) {
-                log.info("==== Trying on new log entry");
-                try{
-                    var msg =new HashMap <String, String>();
-                    msg.put("type", "update");
-                    msg.put("mode", "single");
-                    msg.put("data", logEntry.toString());
-                    session.sendMessage(new TextMessage(mapper.writeValueAsString(msg)));
-                } catch (IOException e) {
-                    log.error("Failed to send message to lara-sock: {}", e.getMessage(), e);
-                }
-            }
-
-            @Override
-            public void onLogEntriesAdded(List<LaravelLog> logEntries) {
-                /*try{
-                    var msg =new HashMap <String, String>();
-                    msg.put("type", "update");
-                    msg.put("mode", "multiple");
-                    msg.put("data", mapper.writeValueAsString(logEntries));
-                    session.sendMessage(new TextMessage(mapper.writeValueAsString(msg)));
-                } catch (IOException e) {
-                    log.error("Failed to send message to lara-sock: {}", e.getMessage(), e);
-                }
-                 */
-            }
-        };
+    @Data
+    static class  LaravelMessage{
+        private String type;
+        private Map<String, String> data;
     }
-}
-
-@Data
-class MessageBody {
-    private String site;
 }
