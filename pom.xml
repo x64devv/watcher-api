@@ -71,7 +71,19 @@
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
+				<configuration>
+					<image>
+						<name>watcher-api:v1.0.0</name>
+						<!-- Optional: specify builder -->
+<!--						<builder>paketobuildpacks/builder:base</builder>-->
+						<!-- Optional: additional tags -->
+						<tags>
+							<tag>watcher-api:latest</tag>
+						</tags>
+					</image>
+				</configuration>
 			</plugin>
+
 		</plugins>
 	</build>
 

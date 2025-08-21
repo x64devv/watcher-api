@@ -1,6 +1,8 @@
 package com.x64dev.watcher.socks.laravel;
 
+import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.x64dev.watcher.models.laravel.LaravelLogListener;
 import com.x64dev.watcher.models.laravel.LaravelLogWatcher;
 import com.x64dev.watcher.models.laravel.LaravelSessionLogListener;
@@ -20,6 +22,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -27,8 +30,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 @Component
 public class LaravelSockHandler extends TextWebSocketHandler {
 
-    @Autowired
-    ObjectMapper mapper;
     @Autowired
     LaravelService laravelService;
     ConcurrentHashMap<String, LaravelLogWatcher> watchers  = new ConcurrentHashMap<>();
@@ -41,12 +42,16 @@ public class LaravelSockHandler extends TextWebSocketHandler {
 
     @Override
     public void handleMessage(WebSocketSession session, WebSocketMessage<?> message) throws Exception {
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.registerModule(new JavaTimeModule());
+        mapper.disable(MapperFeature.REQUIRE_HANDLERS_FOR_JAVA8_OPTIONALS);
+
         String msg = (String) message.getPayload();
         LaravelMessage msgJson = mapper.readValue(msg, LaravelMessage.class);
-        Map<String, String> data = laravelService.fistLogsLoad(msgJson.data.get("site"));
+        Map<String, Object> data = laravelService.fistLogsLoad(msgJson.data.get("site"));
 
         try{
-            Map<String, String> statsMsg = new HashMap<>();
+            Map<String, Object> statsMsg = new HashMap<>();
             statsMsg.put("type", "laravel_stats");
             statsMsg.put("stats", data.get("stats"));
             session.sendMessage(new TextMessage(mapper.writeValueAsString(statsMsg)));
@@ -55,7 +60,7 @@ public class LaravelSockHandler extends TextWebSocketHandler {
         }
 
         try{
-            Map<String, String>  logsMsg = new HashMap<>();
+            Map<String, Object>  logsMsg = new HashMap<>();
             logsMsg.put("type", "all_logs");
             logsMsg.put("logs", data.get("logs"));
             session.sendMessage(new TextMessage(mapper.writeValueAsString(logsMsg)));
