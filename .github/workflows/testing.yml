@@ -31,5 +31,5 @@ jobs:
 
       - name: Build and push Docker image with Maven
         run: |
-          ./mvnw spring-boot:build-image -Dspring-boot.build-image.imageName=${{ vars.DOCKER_USERNAME }}/watcher-api:${{ github.sha }}
-          docker push ${{ vars.DOCKER_USERNAME }}/watcher-api:${{ github.sha }}
+          ./mvnw spring-boot:build-image -Dspring-boot.build-image.imageName=${{ vars.DOCKER_USERNAME }}/watcher-api:
+          docker push ${{ vars.DOCKER_USERNAME }}/watcher-api:latest
