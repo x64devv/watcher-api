@@ -11,7 +11,7 @@ import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry
 public class LaravelConfigurer implements WebSocketConfigurer {
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-        registry.addHandler(myHandler(), "/api/laravel-sock").setAllowedOrigins("*");
+        registry.addHandler(myHandler(), "/api/data-sock").setAllowedOrigins("*");
     }
 
     @Bean
