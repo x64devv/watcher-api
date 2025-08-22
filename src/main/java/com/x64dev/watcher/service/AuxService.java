@@ -1,11 +1,6 @@
 package com.x64dev.watcher.service;
 
-import com.x64dev.watcher.models.SiteContainer;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.env.Environment;
-import org.springframework.stereotype.Service;
-
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
@@ -13,8 +8,14 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
+import org.springframework.stereotype.Service;
+
+import com.x64dev.watcher.models.SiteContainer;
+
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
@@ -32,7 +33,7 @@ public class AuxService {
                     SiteContainer site = new SiteContainer();
                     site.setName(toCamelCase(dir.replaceAll("[.-]", " ").replace("com", "")));
                     site.setSite(dir);
-                    site.setFile(env.getProperty("SITES_BASE_URI")+dir+"/laravel.log");
+                    site.setFile(env.getProperty("SITES_BASE_URI")+File.separator+dir+"/laravel.log");
 
                     sites.add(site);
                 }
