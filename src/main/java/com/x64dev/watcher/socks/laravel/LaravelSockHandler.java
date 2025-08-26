@@ -48,13 +48,13 @@ public class LaravelSockHandler extends TextWebSocketHandler {
 
         String msg = (String) message.getPayload();
         LaravelMessage msgJson = mapper.readValue(msg, LaravelMessage.class);
-        Map<String, Object> data = laravelService.fistLogsLoad(msgJson.data.get("site"));
+        Map<String, Object> data = laravelService.fistLogsLoad(msgJson.data.get("file"));
 
         try{
             Map<String, Object> statsMsg = new HashMap<>();
             statsMsg.put("type", "laravel_stats");
             statsMsg.put("stats", data.get("stats"));
-            session.sendMessage(new TextMessage(mapper.writeValueAsString(statsMsg)));
+            session.sendMessage(new TextMessage(mapper.writeValueAsString(data.get("stats"))));
         }catch (IOException e){
             log.error("Failed to send stats message: ", e);
         }
@@ -67,7 +67,7 @@ public class LaravelSockHandler extends TextWebSocketHandler {
         }catch (IOException e){
             log.error("Failed to send logs: ", e);
         }
-        manageWatcher(msgJson.data.get("site"), session);
+        manageWatcher(msgJson.data.get("file"), session);
     }
 
 
