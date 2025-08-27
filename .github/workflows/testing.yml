@@ -57,4 +57,4 @@ jobs:
               --name watcher-api-testing \
               -p 8000:8001 \
               --restart unless-stopped \
-              ${{ secrets.DOCKER_USERNAME }}/watcher-api:latest
+              ${{ vars.DOCKER_USERNAME }}/watcher-api:latest
