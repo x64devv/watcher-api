@@ -55,6 +55,6 @@ jobs:
               -e SITES_BASE_URI=/logs/ \
               -v /home/actions/logs/:/logs \
               --name watcher-api-testing \
-              -p 8000:8001 \
+              -p 9090:8080 \
               --restart unless-stopped \
               ${{ vars.DOCKER_USERNAME }}/watcher-api:latest
