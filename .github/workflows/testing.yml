@@ -54,6 +54,13 @@ jobs:
               -d \
               -e SITES_BASE_URI=/logs/ \
               -e JAVA_OPTS="-Xss512k" \
+              -e BPL_JVM_HEAD_ROOM=5 \
+              -e BPL_JVM_LOADED_CLASS_COUNT=30000 \
+              -e BPL_JVM_THREAD_COUNT=50 \
+              -e BPL_JVM_DIRECT_MEMORY=8M \
+              -e BPL_JVM_METASPACE=64M \
+              -e BPL_JVM_RESERVED_CODE_CACHE=32M \
+              -e BPL_JVM_STACK=512K \
               -v /home/actions/logs/:/logs \
               --name watcher-api-testing \
               -p 9090:8080 \
