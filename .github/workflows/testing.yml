@@ -53,6 +53,7 @@ jobs:
             docker run  \
               -d \
               -e SITES_BASE_URI=/logs/ \
+              -e JAVA_OPTS="-Xmx256m -Xms128m -XX:MaxMetaspaceSize=64m -XX:MaxDirectMemorySize=8m -XX:ReservedCodeCacheSize=32m" \
               -v /home/actions/logs/:/logs \
               --name watcher-api-testing \
               -p 9090:8080 \
