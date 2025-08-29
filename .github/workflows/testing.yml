@@ -52,7 +52,7 @@ jobs:
             docker pull ${{ secrets.DOCKER_USERNAME }}/watcher-api:${{github.sha}}  # Consistent use of double quotes
             docker run  \
               -d \
-              -e SITES_BASE_URI=/logs/ \
+              -e SITES_BASE_URI=/logs \
               -e JAVA_OPTS="-Xss512k" \
               -e BPL_JVM_HEAD_ROOM=5 \
               -e BPL_JVM_LOADED_CLASS_COUNT=30000 \
